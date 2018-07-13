@@ -155,13 +155,13 @@ simulate_PLC_study <- function(N_per_group,
 
   
   if(bf_for_all_or_atleastone == "all"){
-    if(mean(bfs) > 1){
+    if(mean(log(bfs)) > 0){
       bf = min(bfs)
     } else {
       bf = max(bfs)
     }
   } else {
-    if(mean(bfs) > 1){
+    if(mean(log(bfs)) > 0){
       bf = max(bfs)
     } else {
       bf = min(bfs)
@@ -228,11 +228,11 @@ names(out) = c("BF", "t_pval")
 num_plac_cond = 3
 
 #if M0 is correct
-round(mean(out[,"BF"] > 3)^num_plac_cond, 3) # power to detect similarity of ALL placebo conditions with the real hypnosis condition
-round(1-((1-mean(out[,"BF"] < 0.3333))^num_plac_cond), 3) # chance for falsely saying that there is at least one difference
-round(1-((1-mean(out[,"t_pval"] < 0.05))^num_plac_cond), 3) # chance for falsely saying that there is at least one difference
+power_M0_ture = round(mean(out[,"BF"] > 3)^num_plac_cond, 3) # power to detect similarity of ALL placebo conditions with the real hypnosis condition
+falsepos_M0_ture = round(1-((1-mean(out[,"BF"] < 0.3333))^num_plac_cond), 3) # chance for falsely saying that there is at least one difference
 
-
+power_M0_ture
+falsepos_M0_ture
 
 
 
@@ -275,10 +275,11 @@ names(out) = c("BF", "t_pval")
 num_plac_cond = 3
 
 #if the populations DO differ
-round(mean(out[,"BF"] < 0.3333)^num_plac_cond, 3) # power to detect difference of ALL placebo conditions compard to the real hypnosis condition
-round(mean(out[,"t_pval"] < 0.05)^num_plac_cond, 3) # power to detect difference of ALL placebo conditions compard to the real hypnosis condition
-round(1-((1-mean(out[,"BF"] > 3))^num_plac_cond), 3) # chance for falsely saying that there is AT LEAST ONE similarity
+power_M1_0.3SD_ture = round(mean(out[,"BF"] < 0.3333)^num_plac_cond, 3) # power to detect difference of ALL placebo conditions compard to the real hypnosis condition
+falsepos_M1_0.3SD_ture = round(1-((1-mean(out[,"BF"] > 3))^num_plac_cond), 3) # chance for falsely saying that there is AT LEAST ONE similarity
 
+power_M1_0.3SD_ture
+falsepos_M1_0.3SD_ture
 
 
 # Real hypnosis evokes higher expectancy (real difference is 0.5*SD) (M1 is correct)
@@ -320,11 +321,11 @@ names(out) = c("BF", "t_pval")
 num_plac_cond = 3
 
 #if the populations DO differ
-round(mean(out[,"BF"] < 0.3333)^num_plac_cond, 3) # power to detect difference of ALL placebo conditions compard to the real hypnosis condition
-round(mean(out[,"t_pval"] < 0.05)^num_plac_cond, 3) # power to detect difference of ALL placebo conditions compard to the real hypnosis condition
-round(1-((1-mean(out[,"BF"] > 3))^num_plac_cond), 3) # chance for falsely saying that there is AT LEAST ONE similarity
+power_M1_0.5SD_ture = round(mean(out[,"BF"] < 0.3333)^num_plac_cond, 3) # power to detect difference of ALL placebo conditions compard to the real hypnosis condition
+falsepos_M1_0.5SD_ture = round(1-((1-mean(out[,"BF"] > 3))^num_plac_cond), 3) # chance for falsely saying that there is AT LEAST ONE similarity
 
-
+power_M1_0.5SD_ture
+falsepos_M1_0.5SD_ture
 
 
 
