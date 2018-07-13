@@ -272,7 +272,7 @@ out = as.data.frame(t(out_pre))
 names(out) = c("BF", "t_pval")
 
 # number of placebo conditions tested in parallel:
-num_plac_cond = 1
+num_plac_cond = 3
 
 #if the populations DO differ
 round(mean(out[,"BF"] < 0.3333)^num_plac_cond, 3) # power to detect difference of ALL placebo conditions compard to the real hypnosis condition
