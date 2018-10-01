@@ -87,19 +87,22 @@ correlation_matrix = matrix(c(1, cor_Q1_Q2, cor_Q1_Q2, cor_Q1_Q2, cor_RH_PH, cor
 mean_expectancy = mean(c(4.6, 4.24, 4.68, 4.56)) # mean expectancy = mean(c(4.6, 4.24, 4.68, 4.56))  = 4.52
 sd_expectancy = mean(c(0.5, 0.831, 0.476, 0.651)) # sd of expectancy = mean(c(0.5, 0.831, 0.476, 0.651)) = 0.6145
 SDs = c(sd_expectancy*15, sd_expectancy*1.5, sd_expectancy*1.5, sd_expectancy*15,sd_expectancy*15, sd_expectancy*1.5, sd_expectancy*1.5, sd_expectancy*15, sd_expectancy*1.5) # the order of the data: effec_pain_con	effec_induce_con	choose_over_pharmanalg_con	benefit_perc_con	effec_pain_unc	effec_induce_unc	choose_over_pharmanalg_unc	benefit_perc_unc, effect_pain_hyp_in_general.
-
-effect_size_difference = 0 # the effect size (in cohen's d) of the difference between the expectancy of conventioal and unconventional hypnosis (positive number means that conventional hypnosis evokes higher expectancy), set this to 0 to produce equal expectancy.
-means = c(mean_expectancy*15, mean_expectancy*1.5, mean_expectancy*1.5, mean_expectancy*15, mean_expectancy*15-(SDs[5]*effect_size_difference), mean_expectancy*1.5-(SDs[6]*effect_size_difference), mean_expectancy*1.5-(SDs[7]*effect_size_difference), mean_expectancy*15-(SDs[8]*effect_size_difference), mean_expectancy*1.5)
+means = c(mean_expectancy*15, mean_expectancy*1.5, mean_expectancy*1.5, mean_expectancy*15, mean_expectancy*15, mean_expectancy*1.5, mean_expectancy*1.5, mean_expectancy*15, mean_expectancy*1.5)
 
 p_invalid_cases = 0.4 #(because of p is 0.1 for university_student = no, 0.1 for tried_hypnosis = yes, and 0.01 for age_range = "under 18")
 
+
+# the effect size (in cohen's d) of the difference between the expectancy of conventioal and unconventional hypnosis (negative number means that the uncoventional hypnosis evokes lower expectancy than conventional hypnosis), set this to 0 to produce equal expectancy.
+effect_unc_whitenoise = 0
+effect_unc_subliminal = 0
+effect_unc_embed = 0
 
 # variables required for analysis and eligibility check
 
 var_list = list(data.frame(factor_level = c("unc_whitenoise", "unc_subliminal", "unc_embed"), 
                            p = c(0.333, 0.333, 0.334),
                            effect_con = c(0, 0, 0),
-                           effect_unc = c(0.1, 0, -0.1))) # the effect on the mean expressed in units of standard deviation (cohen's d)
+                           effect_unc = c(effect_unc_whitenoise, effect_unc_subliminal, effect_unc_embed))) # the effect on the mean expressed in units of standard deviation (cohen's d)
 names(var_list) = "unc_type"
 
 var_list[["age_range"]] = data.frame(factor_level = c("under 18", "18 - 24", "25 - 34", "35 - 44", "45 - 54", "55 - 64", "65 - 74", "75 - 84", "85 or older"), 
@@ -320,7 +323,32 @@ if(sim_mod_dem_vars == T){
   data$comment = "other text here"
   
   
+} else {
+  for(j in 1:length(var_list[["unc_type"]][,"effect_con"])){
+    effect_pain_con = SDs[1] * var_list[["unc_type"]][j,"effect_con"]
+    data[,"effect_pain_con"] = apply(data, 1, function(x) if(var_list[["unc_type"]][j, "factor_level"] == x["unc_type"]){as.numeric(x["effect_pain_con"]) + effect_pain_con} else {as.numeric(x["effect_pain_con"])})
+    effect_induce_con = SDs[2] * var_list[["unc_type"]][j,"effect_con"]
+    data[,"effect_induce_con"] = apply(data, 1, function(x) if(var_list[["unc_type"]][j, "factor_level"] == x["unc_type"]){as.numeric(x["effect_induce_con"]) + effect_induce_con} else {as.numeric(x["effect_induce_con"])})
+    effect_choose_over_con = SDs[3] * var_list[["unc_type"]][j,"effect_con"]
+    data[,"choose_over_pharmanalg_con"] = apply(data, 1, function(x) if(var_list[["unc_type"]][j, "factor_level"] == x["unc_type"]){as.numeric(x["choose_over_pharmanalg_con"]) + effect_choose_over_con} else {as.numeric(x["choose_over_pharmanalg_con"])})
+    effect_benefit_perc_con = SDs[4] * var_list[["unc_type"]][j,"effect_con"]
+    data[,"benefit_perc_con"] = apply(data, 1, function(x) if(var_list[["unc_type"]][j, "factor_level"] == x["unc_type"]){as.numeric(x["benefit_perc_con"]) + effect_benefit_perc_con} else {as.numeric(x["benefit_perc_con"])})
+    
+    effect_pain_unc = SDs[5] * var_list[["unc_type"]][j,"effect_unc"]
+    data[,"effect_pain_unc"] = apply(data, 1, function(x) if(var_list[["unc_type"]][j, "factor_level"] == x["unc_type"]){as.numeric(x["effect_pain_unc"]) + effect_pain_unc} else {as.numeric(x["effect_pain_unc"])})
+    effect_induce_unc = SDs[6] * var_list[["unc_type"]][j,"effect_unc"]
+    data[,"effect_induce_unc"] = apply(data, 1, function(x) if(var_list[["unc_type"]][j, "factor_level"] == x["unc_type"]){as.numeric(x["effect_induce_unc"]) + effect_induce_unc} else {as.numeric(x["effect_induce_unc"])})
+    effect_choose_over_unc = SDs[7] * var_list[["unc_type"]][j,"effect_unc"]
+    data[,"choose_over_pharmanalg_unc"] = apply(data, 1, function(x) if(var_list[["unc_type"]][j, "factor_level"] == x["unc_type"]){as.numeric(x["choose_over_pharmanalg_unc"]) + effect_choose_over_unc} else {as.numeric(x["choose_over_pharmanalg_unc"])})
+    effect_benefit_perc_unc = SDs[8] * var_list[["unc_type"]][j,"effect_unc"]
+    data[,"benefit_perc_unc"] = apply(data, 1, function(x) if(var_list[["unc_type"]][j, "factor_level"] == x["unc_type"]){as.numeric(x["benefit_perc_unc"]) + effect_benefit_perc_unc} else {as.numeric(x["benefit_perc_unc"])})
+    
+    effect_pain_hyp_in_general = SDs[9] * var_list[["unc_type"]][j,"effect_con"]
+    data[,"effect_pain_hyp_in_general"] = apply(data, 1, function(x) if(var_list[["unc_type"]][j, "factor_level"] == x["unc_type"]){as.numeric(x["effect_pain_hyp_in_general"]) + effect_pain_hyp_in_general} else {as.numeric(x["effect_pain_hyp_in_general"])})
+    
+  }
 }
+
 
 #########################################################
 #                    Rounding                           #
