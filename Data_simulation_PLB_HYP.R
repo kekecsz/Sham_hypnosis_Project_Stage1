@@ -120,7 +120,7 @@ var_list[["tried_hypnosis"]] = data.frame(factor_level = c("yes", "no"),
 
 
 
-sim_mod_dem_vars = F # whether to simulate moderator and demographic variables
+sim_mod_dem_vars = T # whether to simulate moderator and demographic variables
 
 if(sim_mod_dem_vars == T){
   ## Set parameters of moderating and demographic variables and their effect on the expectancy of conventional and unconventional techniques
