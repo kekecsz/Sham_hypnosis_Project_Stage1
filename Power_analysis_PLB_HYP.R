@@ -29,14 +29,21 @@ library(progress) # for progress bar
 
 # set parameters of the simulation power analysis
 
+### NOTE: with 10000 iterations, the script runs for 20 hours with i7-6600U CPU.
+
 # number of iterations
-iterations = 10000 
+iterations = 10000
 
 # the effect sizes to try in this stimulation (in cohen's d) of the difference 
 # between the expectancy of conventioal and unconventional hypnosis 
 # (positive number means that conventional hypnosis evokes higher expectancy), 
 # set this to 0 to produce equal expectancy.
-effect_size_difference_to_try = c(0, 0.3, 0.4, 0.5) 
+# each column of the matrix corresponds to a different simulation, 
+# each row refers to the effect size to try in an arm with a different unconventional technique
+# the order from top to bottom is whitenoise,subliminal,embedded hypnosis.
+effect_size_difference_to_try = matrix(c(0, 0, -0.3, -0.4, -0.5,
+                                         0, -0.5, -0.3, -0.4, -0.5,
+                                         0, -0.5, -0.3, -0.4, -0.5), ncol = 5, byrow = T) 
 
 
 
@@ -64,7 +71,9 @@ simul_PLB_study <- function(N_per_group = 240,
                             cor_Q1_Q2 = 0.5, #correlation between responses given to the two main questions (within the same subject)
                             cor_RH_PH = 0.3, #correlation between responses given to the same questions between the real hypnosis and the placebo hypnosis conditions (within the same subject)
                             cor_RH_Q1_PH_Q2 = 0.1, #correlation between responses given to the two main questions between the real hypnosis and the placebo hypnosis conditions (within the same subject)
-                            effect_size_difference = 0, # the effect size (in cohen's d) of the difference between the expectancy of conventioal and unconventional hypnosis (positive number means that conventional hypnosis evokes higher expectancy), set this to 0 to produce equal expectancy.
+                            effect_unc_whitenoise = 0,
+                            effect_unc_subliminal = 0,
+                            effect_unc_embed = 0,  # the effect size (in cohen's d) of the difference between the expectancy of conventioal and unconventional hypnosis (negative number means that the uncoventional hypnosis evokes lower expectancy than conventional hypnosis), set this to 0 to produce equal expectancy.
                             p_invalid_cases = 0.4, #(because of p is 0.1 for university_student = no, 0.1 for tried_hypnosis = yes, and 0.01 for age_range = "under 18")
                             sim_mod_dem_vars = F, # whether to simulate moderator and demographic variables
                             show_graphs = F){
@@ -120,17 +129,22 @@ simul_PLB_study <- function(N_per_group = 240,
   mean_expectancy = mean(c(4.6, 4.24, 4.68, 4.56)) # mean expectancy = mean(c(4.6, 4.24, 4.68, 4.56))  = 4.52
   sd_expectancy = mean(c(0.5, 0.831, 0.476, 0.651)) # sd of expectancy = mean(c(0.5, 0.831, 0.476, 0.651)) = 0.6145
   SDs = c(sd_expectancy*15, sd_expectancy*1.5, sd_expectancy*1.5, sd_expectancy*15,sd_expectancy*15, sd_expectancy*1.5, sd_expectancy*1.5, sd_expectancy*15, sd_expectancy*1.5) # the order of the data: effec_pain_con	effec_induce_con	choose_over_pharmanalg_con	benefit_perc_con	effec_pain_unc	effec_induce_unc	choose_over_pharmanalg_unc	benefit_perc_unc, effect_pain_hyp_in_general.
+  means = c(mean_expectancy*15, mean_expectancy*1.5, mean_expectancy*1.5, mean_expectancy*15, mean_expectancy*15, mean_expectancy*1.5, mean_expectancy*1.5, mean_expectancy*15, mean_expectancy*1.5)
   
-  effect_size_difference = effect_size_difference # the effect size (in cohen's d) of the difference between the expectancy of conventioal and unconventional hypnosis (positive number means that conventional hypnosis evokes higher expectancy), set this to 0 to produce equal expectancy.
-  means = c(mean_expectancy*15, mean_expectancy*1.5, mean_expectancy*1.5, mean_expectancy*15, mean_expectancy*15-(SDs[5]*effect_size_difference), mean_expectancy*1.5-(SDs[6]*effect_size_difference), mean_expectancy*1.5-(SDs[7]*effect_size_difference), mean_expectancy*15-(SDs[8]*effect_size_difference), mean_expectancy*1.5)
+  p_invalid_cases = 0.4 #(because of p is 0.1 for university_student = no, 0.1 for tried_hypnosis = yes, and 0.01 for age_range = "under 18")
   
-  p_invalid_cases = p_invalid_cases
+  
+  # the effect size (in cohen's d) of the difference between the expectancy of conventioal and unconventional hypnosis (negative number means that the uncoventional hypnosis evokes lower expectancy than conventional hypnosis), set this to 0 to produce equal expectancy.
+  effect_unc_whitenoise = effect_unc_whitenoise
+  effect_unc_subliminal = effect_unc_subliminal
+  effect_unc_embed = effect_unc_embed
+  
   # variables required for analysis and eligibility check
   
   var_list = list(data.frame(factor_level = c("unc_whitenoise", "unc_subliminal", "unc_embed"), 
                              p = c(0.333, 0.333, 0.334),
                              effect_con = c(0, 0, 0),
-                             effect_unc = c(0.1, 0, -0.1))) # the effect on the mean expressed in units of standard deviation (cohen's d)
+                             effect_unc = c(effect_unc_whitenoise, effect_unc_subliminal, effect_unc_embed))) # the effect on the mean expressed in units of standard deviation (cohen's d)
   names(var_list) = "unc_type"
   
   var_list[["age_range"]] = data.frame(factor_level = c("under 18", "18 - 24", "25 - 34", "35 - 44", "45 - 54", "55 - 64", "65 - 74", "75 - 84", "85 or older"), 
@@ -351,6 +365,30 @@ simul_PLB_study <- function(N_per_group = 240,
     data$comment = "other text here"
     
     
+  } else {
+    for(j in 1:length(var_list[["unc_type"]][,"effect_con"])){
+      effect_pain_con = SDs[1] * var_list[["unc_type"]][j,"effect_con"]
+      data[,"effect_pain_con"] = apply(data, 1, function(x) if(var_list[["unc_type"]][j, "factor_level"] == x["unc_type"]){as.numeric(x["effect_pain_con"]) + effect_pain_con} else {as.numeric(x["effect_pain_con"])})
+      effect_induce_con = SDs[2] * var_list[["unc_type"]][j,"effect_con"]
+      data[,"effect_induce_con"] = apply(data, 1, function(x) if(var_list[["unc_type"]][j, "factor_level"] == x["unc_type"]){as.numeric(x["effect_induce_con"]) + effect_induce_con} else {as.numeric(x["effect_induce_con"])})
+      effect_choose_over_con = SDs[3] * var_list[["unc_type"]][j,"effect_con"]
+      data[,"choose_over_pharmanalg_con"] = apply(data, 1, function(x) if(var_list[["unc_type"]][j, "factor_level"] == x["unc_type"]){as.numeric(x["choose_over_pharmanalg_con"]) + effect_choose_over_con} else {as.numeric(x["choose_over_pharmanalg_con"])})
+      effect_benefit_perc_con = SDs[4] * var_list[["unc_type"]][j,"effect_con"]
+      data[,"benefit_perc_con"] = apply(data, 1, function(x) if(var_list[["unc_type"]][j, "factor_level"] == x["unc_type"]){as.numeric(x["benefit_perc_con"]) + effect_benefit_perc_con} else {as.numeric(x["benefit_perc_con"])})
+      
+      effect_pain_unc = SDs[5] * var_list[["unc_type"]][j,"effect_unc"]
+      data[,"effect_pain_unc"] = apply(data, 1, function(x) if(var_list[["unc_type"]][j, "factor_level"] == x["unc_type"]){as.numeric(x["effect_pain_unc"]) + effect_pain_unc} else {as.numeric(x["effect_pain_unc"])})
+      effect_induce_unc = SDs[6] * var_list[["unc_type"]][j,"effect_unc"]
+      data[,"effect_induce_unc"] = apply(data, 1, function(x) if(var_list[["unc_type"]][j, "factor_level"] == x["unc_type"]){as.numeric(x["effect_induce_unc"]) + effect_induce_unc} else {as.numeric(x["effect_induce_unc"])})
+      effect_choose_over_unc = SDs[7] * var_list[["unc_type"]][j,"effect_unc"]
+      data[,"choose_over_pharmanalg_unc"] = apply(data, 1, function(x) if(var_list[["unc_type"]][j, "factor_level"] == x["unc_type"]){as.numeric(x["choose_over_pharmanalg_unc"]) + effect_choose_over_unc} else {as.numeric(x["choose_over_pharmanalg_unc"])})
+      effect_benefit_perc_unc = SDs[8] * var_list[["unc_type"]][j,"effect_unc"]
+      data[,"benefit_perc_unc"] = apply(data, 1, function(x) if(var_list[["unc_type"]][j, "factor_level"] == x["unc_type"]){as.numeric(x["benefit_perc_unc"]) + effect_benefit_perc_unc} else {as.numeric(x["benefit_perc_unc"])})
+      
+      effect_pain_hyp_in_general = SDs[9] * var_list[["unc_type"]][j,"effect_con"]
+      data[,"effect_pain_hyp_in_general"] = apply(data, 1, function(x) if(var_list[["unc_type"]][j, "factor_level"] == x["unc_type"]){as.numeric(x["effect_pain_hyp_in_general"]) + effect_pain_hyp_in_general} else {as.numeric(x["effect_pain_hyp_in_general"])})
+      
+    }
   }
   
   #########################################################
@@ -582,7 +620,7 @@ simul_PLB_study <- function(N_per_group = 240,
   # In all other cases, we will conclude that the study did not yield conclusive 
   # evidence to support or reject the main hypothesis.
   
-  return(c(conf_test_H, effect_size_difference))
+  return(c(conf_test_H, effect_unc_whitenoise, effect_unc_subliminal, effect_unc_embed))
 }
 
 
@@ -600,16 +638,16 @@ simul_PLB_study <- function(N_per_group = 240,
 
 
 # set up table where results of the simulation power analysis will be stored
-operational_characteristics = as.data.frame(matrix(NA, nrow = 4, ncol = 4))
-names(operational_characteristics) = c("effect_size_difference", "p_accept_hip", "p_decline_hip", "p_inconclusive")
+operational_characteristics = as.data.frame(matrix(NA, nrow = 4, ncol = 6))
+names(operational_characteristics) = c("effect_unc_whitenoise","effect_unc_subliminal","effect_unc_embed", "p_accept_hip", "p_decline_hip", "p_inconclusive")
 
 
 
 
 
 
-for(i in 1:length(effect_size_difference_to_try)){
-  print(paste("Now simulating studies with effect_size_difference =", effect_size_difference_to_try[i]))
+for(i in 1:ncol(effect_size_difference_to_try)){
+  print(paste("Now simulating studies with effect_size_difference =", effect_size_difference_to_try[1,i], effect_size_difference_to_try[2,i], effect_size_difference_to_try[3,i]))
   
   pb <- progress_bar$new(
     format = " simulation progress [:bar] :percent eta: :eta",
@@ -618,16 +656,20 @@ for(i in 1:length(effect_size_difference_to_try)){
   
   
   out = replicate(iterations, simul_PLB_study(N_per_group = 240,
-                                                    cor_Q1_Q2 = 0.5, #correlation between responses given to the two main questions (within the same subject)
-                                                    cor_RH_PH = 0.3, #correlation between responses given to the same questions between the real hypnosis and the placebo hypnosis conditions (within the same subject)
-                                                    cor_RH_Q1_PH_Q2 = 0.1, #correlation between responses given to the two main questions between the real hypnosis and the placebo hypnosis conditions (within the same subject)
-                                                    effect_size_difference = effect_size_difference_to_try[i], # the effect size (in cohen's d) of the difference between the expectancy of conventioal and unconventional hypnosis (positive number means that conventional hypnosis evokes higher expectancy), set this to 0 to produce equal expectancy.
-                                                    p_invalid_cases = 0.4, #(because of p is 0.1 for university_student = no, 0.1 for tried_hypnosis = yes, and 0.01 for age_range = "under 18")
-                                                    sim_mod_dem_vars = F, # whether to simulate moderator and demographic variables
-                                                    show_graphs = F
+                                              cor_Q1_Q2 = 0.5, #correlation between responses given to the two main questions (within the same subject)
+                                              cor_RH_PH = 0.3, #correlation between responses given to the same questions between the real hypnosis and the placebo hypnosis conditions (within the same subject)
+                                              cor_RH_Q1_PH_Q2 = 0.1, #correlation between responses given to the two main questions between the real hypnosis and the placebo hypnosis conditions (within the same subject)
+                                              effect_unc_whitenoise = effect_size_difference_to_try[1, i],
+                                              effect_unc_subliminal = effect_size_difference_to_try[2, i],
+                                              effect_unc_embed = effect_size_difference_to_try[3, i],  # the effect size (in cohen's d) of the difference between the expectancy of conventioal and unconventional hypnosis (negative number means that the uncoventional hypnosis evokes lower expectancy than conventional hypnosis), set this to 0 to produce equal expectancy.
+                                              p_invalid_cases = 0.4, #(because of p is 0.1 for university_student = no, 0.1 for tried_hypnosis = yes, and 0.01 for age_range = "under 18")
+                                              sim_mod_dem_vars = F, # whether to simulate moderator and demographic variables
+                                              show_graphs = F
   ))
-  
-  operational_characteristics[i, "effect_size_difference"] = out[2,1]
+
+  operational_characteristics[i, "effect_unc_whitenoise"] = out[2,1]
+  operational_characteristics[i, "effect_unc_subliminal"] = out[3,1]
+  operational_characteristics[i, "effect_unc_embed"] = out[4,1]
   # chance for concluding the hypothesis is false
   operational_characteristics[i, "p_accept_hip"] = table(out[1,])["TRUE"]/sum(table(out[1,]))
   # chance for concluding the hypothesis is false
