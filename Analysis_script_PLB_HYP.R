@@ -34,6 +34,15 @@ library(psych) # for descriptives and to determine skew
 # source("https://raw.githubusercontent.com/kekecsz/Sham_hypnosis_Project_Stage1/master/Data_simulation_PLB_HYP_dif.R")
 
 #########################################################
+#           Set current stopping point                  #
+#########################################################
+
+# Stopping points for analysis expressed in eligiple participants in each of the 3 groups (150 means that the analysis will be performed when N = 150 eligible participants in each of the 3 grups)
+# this is either 150, 200, or 240
+
+analyze_at_N = 150
+
+#########################################################
 #     Compute Expectancy difference scores              #
 #########################################################
 
@@ -73,11 +82,11 @@ data_embed_conf = data_conf[data_conf[,"unc_type"] == "unc_embed",]
 data_subliminal_conf = data_conf[data_conf[,"unc_type"] == "unc_subliminal",]
 data_whitenoise_conf = data_conf[data_conf[,"unc_type"] == "unc_whitenoise",]
 
-# only use the first N_per_group observations from each group as per pre-registration
-# if there are N_per_group observations or more
-if(nrow(data_embed_conf) > N_per_group){data_embed_conf = data_embed_conf[1:N_per_group,]}
-if(nrow(data_subliminal_conf) > N_per_group){data_subliminal_conf = data_subliminal_conf[1:N_per_group,]}
-if(nrow(data_whitenoise_conf) > N_per_group){data_whitenoise_conf = data_whitenoise_conf[1:N_per_group,]}
+# only use the first analyze_at_N observations from each group as per pre-registration
+# if there are analyze_at_N observations or more
+if(nrow(data_embed_conf) > analyze_at_N){data_embed_conf = data_embed_conf[1:analyze_at_N,]}
+if(nrow(data_subliminal_conf) > analyze_at_N){data_subliminal_conf = data_subliminal_conf[1:analyze_at_N,]}
+if(nrow(data_whitenoise_conf) > analyze_at_N){data_whitenoise_conf = data_whitenoise_conf[1:analyze_at_N,]}
 
 # Descriptives
 # percentage of eligible participants for confirmatory analysis
@@ -240,5 +249,3 @@ conf_test_H = if(
 
 print(conf_test_H)
 
-
-names(data)
