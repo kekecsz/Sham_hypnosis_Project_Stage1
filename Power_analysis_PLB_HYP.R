@@ -32,7 +32,10 @@ library(progress) # for progress bar
 ### NOTE: with 10000 iterations, the script runs for 20 hours with i7-6600U CPU.
 
 # number of iterations
-iterations = 10000
+iterations = 10
+
+# Stopping points for analysis expressed in eligiple participants in each of the 3 groups (150 means that the analysis will be performed when N = 150 eligible participants in each of the 3 grups)
+analyze_at_Ns_to_try = c(150, 200, 240)
 
 # the effect sizes to try in this stimulation (in cohen's d) of the difference 
 # between the expectancy of conventioal and unconventional hypnosis 
@@ -68,6 +71,7 @@ generate_timestamp <- function(N, st="2012/01/01", et="2012/12/31") {
 
 
 simul_PLB_study <- function(N_per_group = 240,
+                            analyze_at_Ns= c(120, 240),
                             cor_Q1_Q2 = 0.5, #correlation between responses given to the two main questions (within the same subject)
                             cor_RH_PH = 0.3, #correlation between responses given to the same questions between the real hypnosis and the placebo hypnosis conditions (within the same subject)
                             cor_RH_Q1_PH_Q2 = 0.1, #correlation between responses given to the two main questions between the real hypnosis and the placebo hypnosis conditions (within the same subject)
@@ -558,56 +562,70 @@ simul_PLB_study <- function(N_per_group = 240,
   conf_results = as.data.frame(matrix(NA, nrow = 3, ncol = 2))
   names(conf_results) = c("diff_effect_pain", "diff_effect_induce")
   row.names(conf_results) = c("embed", "subliminal", "whitenoise")
+  stopped_at = NA
+
+  for(i in 1:length(analyze_at_Ns)){
+    
+    stopped_at = analyze_at_Ns[i]
+    stopped_at_embed = if(stopped_at > nrow(data_embed_conf)){nrow(data_embed_conf)} else {stopped_at}
+    stopped_at_subliminal = if(stopped_at > nrow(data_subliminal_conf)){nrow(data_subliminal_conf)} else {stopped_at}
+    stopped_at_whitenoise = if(stopped_at > nrow(data_whitenoise_conf)){nrow(data_whitenoise_conf)} else {stopped_at}
+    
+    # confirmatory analysis on non-transformed data
+    # rscale = 1 corresponds to the Cauchy prior distribution with a scaling constant rscale = "wide" in the BayesFactor package
+    # in case of large differences, approximation is used, this warning message is suppressed by suppressMessages()
+    conf_results["embed", "diff_effect_pain"] = suppressMessages(1/matrix(ttestBF(data_embed_conf[1:stopped_at_embed,"diff_effect_pain"], mu = 0, rscale = 1, nullInterval = c(0, Inf)))[1])
+    conf_results["embed", "diff_effect_induce"] = suppressMessages(1/matrix(ttestBF(data_embed_conf[1:stopped_at_embed,"diff_effect_induce"], mu = 0, rscale = 1, nullInterval = c(0, Inf)))[1])
+    
+    conf_results["subliminal", "diff_effect_pain"] = suppressMessages(1/matrix(ttestBF(data_subliminal_conf[1:stopped_at_subliminal,"diff_effect_pain"], mu = 0, rscale = 1, nullInterval = c(0, Inf)))[1])
+    conf_results["subliminal", "diff_effect_induce"] = suppressMessages(1/matrix(ttestBF(data_subliminal_conf[1:stopped_at_subliminal,"diff_effect_induce"], mu = 0, rscale = 1, nullInterval = c(0, Inf)))[1])
+    
+    conf_results["whitenoise", "diff_effect_pain"] = suppressMessages(1/matrix(ttestBF(data_whitenoise_conf[1:stopped_at_whitenoise,"diff_effect_pain"], mu = 0, rscale = 1, nullInterval = c(0, Inf)))[1])
+    conf_results["whitenoise", "diff_effect_induce"] = suppressMessages(1/matrix(ttestBF(data_whitenoise_conf[1:stopped_at_whitenoise,"diff_effect_induce"], mu = 0, rscale = 1, nullInterval = c(0, Inf)))[1])
+    
+    
+    # confirmatory analysis on transformed data if necessary
+    # If transformation is necessary, analysis results will be reported both with 
+    # and without transformation, but if skewness is considered problematic, 
+    # the analysis of the transformed data will be used for final statistical inference 
+    
+    # conf_results["embed", "diff_effect_pain"] = 1/matrix(ttestBF(data_embed_conf[,"diff_effect_pain_transf"], mu = 0, rscale = 1, nullInterval = c(0, Inf)))[1]
+    # conf_results["embed", "diff_effect_induce"] = 1/matrix(ttestBF(data_embed_conf[,"diff_effect_induce_transf"], mu = 0, rscale = 1, nullInterval = c(0, Inf)))[1]
+    
+    # conf_results["subliminal", "diff_effect_pain"] = 1/matrix(ttestBF(data_subliminal_conf[,"diff_effect_pain_transf"], mu = 0, rscale = 1, nullInterval = c(0, Inf)))[1]
+    # conf_results["subliminal", "diff_effect_induce"] = 1/matrix(ttestBF(data_subliminal_conf[,"diff_effect_induce_transf"], mu = 0, rscale = 1, nullInterval = c(0, Inf)))[1]
+    
+    # conf_results["whitenoise", "diff_effect_pain"] = 1/matrix(ttestBF(data_whitenoise_conf[,"diff_effect_pain_transf"], mu = 0, rscale = 1, nullInterval = c(0, Inf)))[1]
+    # conf_results["whitenoise", "diff_effect_induce"] = 1/matrix(ttestBF(data_whitenoise_conf[,"diff_effect_induce_transf"], mu = 0, rscale = 1, nullInterval = c(0, Inf)))[1]
+    
+    conf_results
+    
+    #########################################################
+    #               Statistical inference                   #
+    #########################################################
+    
+    
+    conf_test_H = if(
+      # We will conclude that our primary hypothesis is supported if there is 
+      # **at least one** unconventional technique where M0 is supported (Bayes Factor (0,1) is higher
+      # than 3) for both the expectancy of pain reduction and hypnosis effectiveness.
+      sum(apply(conf_results, 1, min)>3)>0){"TRUE"} else if(
+        
+        # We will conclude that our primary hypothesis is rejected if for **all three** 
+        # unconventional techniques, M1 is supported (Bayes Factor (0,1) is lower than 
+        # 1/3) for both the expectancy of pain reduction and hypnosis effectiveness.
+        sum(apply(conf_results, 1, max)<1/3)>2){"FALSE"} else {
+          # In all other cases, we will conclude that the study did not yield conclusive 
+          # evidence to support or reject the main hypothesis.
+          "INCONCLUSIVE"
+        }
+    
+    if(conf_test_H == "TRUE"){break}
+    if(conf_test_H == "FALSE"){break}
+    
+  }
   
-  # confirmatory analysis on non-transformed data
-  # rscale = 1 corresponds to the Cauchy prior distribution with a scaling constant rscale = "wide" in the BayesFactor package
-  # in case of large differences, approximation is used, this warning message is suppressed by suppressMessages()
-  conf_results["embed", "diff_effect_pain"] = suppressMessages(1/matrix(ttestBF(data_embed_conf[,"diff_effect_pain"], mu = 0, rscale = 1, nullInterval = c(0, Inf)))[1])
-  conf_results["embed", "diff_effect_induce"] = suppressMessages(1/matrix(ttestBF(data_embed_conf[,"diff_effect_induce"], mu = 0, rscale = 1, nullInterval = c(0, Inf)))[1])
-  
-  conf_results["subliminal", "diff_effect_pain"] = suppressMessages(1/matrix(ttestBF(data_subliminal_conf[,"diff_effect_pain"], mu = 0, rscale = 1, nullInterval = c(0, Inf)))[1])
-  conf_results["subliminal", "diff_effect_induce"] = suppressMessages(1/matrix(ttestBF(data_subliminal_conf[,"diff_effect_induce"], mu = 0, rscale = 1, nullInterval = c(0, Inf)))[1])
-  
-  conf_results["whitenoise", "diff_effect_pain"] = suppressMessages(1/matrix(ttestBF(data_whitenoise_conf[,"diff_effect_pain"], mu = 0, rscale = 1, nullInterval = c(0, Inf)))[1])
-  conf_results["whitenoise", "diff_effect_induce"] = suppressMessages(1/matrix(ttestBF(data_whitenoise_conf[,"diff_effect_induce"], mu = 0, rscale = 1, nullInterval = c(0, Inf)))[1])
-  
-  
-  # confirmatory analysis on transformed data if necessary
-  # If transformation is necessary, analysis results will be reported both with 
-  # and without transformation, but if skewness is considered problematic, 
-  # the analysis of the transformed data will be used for final statistical inference 
-  
-  # conf_results["embed", "diff_effect_pain"] = 1/matrix(ttestBF(data_embed_conf[,"diff_effect_pain_transf"], mu = 0, rscale = 1, nullInterval = c(0, Inf)))[1]
-  # conf_results["embed", "diff_effect_induce"] = 1/matrix(ttestBF(data_embed_conf[,"diff_effect_induce_transf"], mu = 0, rscale = 1, nullInterval = c(0, Inf)))[1]
-  
-  # conf_results["subliminal", "diff_effect_pain"] = 1/matrix(ttestBF(data_subliminal_conf[,"diff_effect_pain_transf"], mu = 0, rscale = 1, nullInterval = c(0, Inf)))[1]
-  # conf_results["subliminal", "diff_effect_induce"] = 1/matrix(ttestBF(data_subliminal_conf[,"diff_effect_induce_transf"], mu = 0, rscale = 1, nullInterval = c(0, Inf)))[1]
-  
-  # conf_results["whitenoise", "diff_effect_pain"] = 1/matrix(ttestBF(data_whitenoise_conf[,"diff_effect_pain_transf"], mu = 0, rscale = 1, nullInterval = c(0, Inf)))[1]
-  # conf_results["whitenoise", "diff_effect_induce"] = 1/matrix(ttestBF(data_whitenoise_conf[,"diff_effect_induce_transf"], mu = 0, rscale = 1, nullInterval = c(0, Inf)))[1]
-  
-  conf_results
-  
-  #########################################################
-  #               Statistical inference                   #
-  #########################################################
-  
-  
-  conf_test_H = if(
-    # We will conclude that our primary hypothesis is supported if there is 
-    # **at least one** unconventional technique where M0 is supported (Bayes Factor (0,1) is higher
-    # than 3) for both the expectancy of pain reduction and hypnosis effectiveness.
-    sum(apply(conf_results, 1, min)>3)>0){"TRUE"} else if(
-      
-      # We will conclude that our primary hypothesis is rejected if for **all three** 
-      # unconventional techniques, M1 is supported (Bayes Factor (0,1) is lower than 
-      # 1/3) for both the expectancy of pain reduction and hypnosis effectiveness.
-      sum(apply(conf_results, 1, max)<1/3)>2){"FALSE"} else {
-        # In all other cases, we will conclude that the study did not yield conclusive 
-        # evidence to support or reject the main hypothesis.
-        "INCONCLUSIVE"
-      }
-  
+ 
   
   ### final statistical inference abut the study hypothesis.
   
@@ -620,7 +638,7 @@ simul_PLB_study <- function(N_per_group = 240,
   # In all other cases, we will conclude that the study did not yield conclusive 
   # evidence to support or reject the main hypothesis.
   
-  return(c(conf_test_H, effect_unc_whitenoise, effect_unc_subliminal, effect_unc_embed))
+  return(c(conf_test_H, effect_unc_whitenoise, effect_unc_subliminal, effect_unc_embed, stopped_at))
 }
 
 
@@ -638,8 +656,8 @@ simul_PLB_study <- function(N_per_group = 240,
 
 
 # set up table where results of the simulation power analysis will be stored
-operational_characteristics = as.data.frame(matrix(NA, nrow = 4, ncol = 6))
-names(operational_characteristics) = c("effect_unc_whitenoise","effect_unc_subliminal","effect_unc_embed", "p_accept_hip", "p_decline_hip", "p_inconclusive")
+operational_characteristics = as.data.frame(matrix(NA, nrow = 4, ncol = 6+length(analyze_at_Ns_to_try)))
+names(operational_characteristics) = c("effect_unc_whitenoise","effect_unc_subliminal","effect_unc_embed", "p_accept_hip", "p_decline_hip", "p_inconclusive", paste("stoppedat_", analyze_at_Ns_to_try, sep = ""))
 
 
 
@@ -656,6 +674,7 @@ for(i in 1:ncol(effect_size_difference_to_try)){
   
   
   out = replicate(iterations, simul_PLB_study(N_per_group = 240,
+                                              analyze_at_Ns = analyze_at_Ns_to_try,
                                               cor_Q1_Q2 = 0.5, #correlation between responses given to the two main questions (within the same subject)
                                               cor_RH_PH = 0.3, #correlation between responses given to the same questions between the real hypnosis and the placebo hypnosis conditions (within the same subject)
                                               cor_RH_Q1_PH_Q2 = 0.1, #correlation between responses given to the two main questions between the real hypnosis and the placebo hypnosis conditions (within the same subject)
@@ -676,10 +695,12 @@ for(i in 1:ncol(effect_size_difference_to_try)){
   operational_characteristics[i, "p_decline_hip"] = table(out[1,])["FALSE"]/sum(table(out[1,]))
   # chance for inconclusive result
   operational_characteristics[i, "p_inconclusive"] = table(out[1,])["INCONCLUSIVE"]/sum(table(out[1,]))
+  
+  for(j in 1:length(analyze_at_Ns_to_try)){
+    operational_characteristics[i, paste("stoppedat_", analyze_at_Ns_to_try[j], sep = "")] = table(as.character(out[5,]))[as.character(analyze_at_Ns_to_try[j])]/sum(table(as.character(out[5,])))
+  }
 }
 
 
 
 operational_characteristics
-
-                                                  
